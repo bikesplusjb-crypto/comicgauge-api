@@ -104,6 +104,24 @@
   .hot-card .links a{font-family:'Anton',sans-serif;font-size:12px;letter-spacing:.5px;text-decoration:none;}
   .hot-card .links a.sold{color:var(--ink);border-bottom:2px solid var(--ink);}
   .hot-card .links a.act{color:var(--red);border-bottom:2px solid var(--red);}
+  /* Gauge family cross-promo strip */
+  .family{max-width:1100px;margin:60px auto 0;padding:0 20px;}
+  .family-head{display:flex;align-items:center;gap:12px;margin-bottom:18px;}
+  .family-head h2{font-family:'Bangers',cursive;font-size:clamp(24px,4vw,34px);letter-spacing:1.5px;line-height:1;white-space:nowrap;}
+  .family-head .rule{flex:1;height:4px;background:var(--ink);}
+  .family-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+  .fam-card{background:#fffdf6;border:4px solid var(--ink);border-radius:4px;padding:18px;box-shadow:5px 5px 0 var(--ink);display:flex;flex-direction:column;transition:.1s;}
+  .fam-card:hover{transform:translate(-1px,-1px);box-shadow:6px 6px 0 var(--ink);}
+  .fam-card .fam-name{font-family:'Bangers',cursive;font-size:24px;letter-spacing:1px;line-height:1;}
+  .fam-card .fam-name b{color:var(--red);}
+  .fam-card .fam-name .alt{color:var(--blue);}
+  .fam-card .fam-name .alt2{color:#1f9d55;}
+  .fam-card .fam-line{font-size:14px;font-weight:600;margin:8px 0 16px;flex:1;}
+  .fam-card a.fam-btn{margin-top:auto;text-align:center;text-decoration:none;font-family:'Bangers',cursive;letter-spacing:1px;font-size:16px;padding:10px;border-radius:3px;border:3px solid var(--ink);background:var(--yellow);color:var(--ink);box-shadow:3px 3px 0 var(--ink);transition:.08s;}
+  .fam-card a.fam-btn:hover{transform:translate(1px,1px);box-shadow:2px 2px 0 var(--ink);}
+  .fam-card a.fam-btn.soon{background:var(--paper-2);color:var(--muted);cursor:default;}
+  .fam-card a.fam-btn.soon:hover{transform:none;box-shadow:3px 3px 0 var(--ink);}
+  @media(max-width:680px){.family-grid{grid-template-columns:1fr;}}
   footer{max-width:1100px;margin:64px auto 0;padding:22px 20px 60px;border-top:4px solid var(--ink);font-size:13px;color:var(--muted);text-align:center;font-weight:600;}
   footer a{color:var(--ink);font-weight:700;}
   @media(max-width:520px){.prices{grid-template-columns:1fr 1fr;}.burst{width:110px;height:110px;font-size:19px;top:-10px;right:-10px;}.logo{font-size:26px;}}
@@ -176,6 +194,30 @@
   </div>
   <div class="spinner" id="hotSpinner" style="display:block;"></div>
   <div class="hot-grid" id="hotGrid"></div>
+</section>
+
+<section class="family">
+  <div class="family-head">
+    <h2>THE GAUGE FAMILY</h2>
+    <div class="rule"></div>
+  </div>
+  <div class="family-grid">
+    <div class="fam-card">
+      <div class="fam-name">CARD<b>GAUGE</b></div>
+      <p class="fam-line">Collect cards too? Scan any sports or Pokémon card and get the same instant market read.</p>
+      <a class="fam-btn" href="https://cardgauge.com" target="_blank" rel="noopener">SCAN A CARD →</a>
+    </div>
+    <div class="fam-card">
+      <div class="fam-name">WORTH<span class="alt">GAUGE</span></div>
+      <p class="fam-line">Bigger collection? Track and value everything you own in one place — built for insurance and records.</p>
+      <a class="fam-btn" href="https://worthgauge.com" target="_blank" rel="noopener">TRACK IT →</a>
+    </div>
+    <div class="fam-card">
+      <div class="fam-name">HOTWHEELS<span class="alt2">GAUGE</span></div>
+      <p class="fam-line">Redlines and Treasure Hunts have a market too. The same scan-and-comps tool, for diecast.</p>
+      <a class="fam-btn soon" href="#" onclick="return false;">COMING SOON</a>
+    </div>
+  </div>
 </section>
 
 <footer>
