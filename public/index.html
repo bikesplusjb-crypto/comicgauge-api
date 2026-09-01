@@ -3,7 +3,8 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>ComicGauge — Scan Any Comic, Know Its Market</title>
+<title>ComicGauge — Scan a comic, see what copies are listed for</title>
+<meta name="description" content="Scan a cover or type a title. See what copies are currently listed for on eBay, then jump straight to real completed sales. No made-up values." />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bangers&family=Anton&family=Archivo:wght@400;600;700;900&display=swap" rel="stylesheet">
@@ -33,15 +34,15 @@
   .price-box .big{font-family:'Bangers',cursive;font-size:20px;line-height:1;color:var(--yellow);}
   .hero{max-width:1100px;margin:0 auto;padding:40px 20px 10px;position:relative;}
   .hero-inner{border:4px solid var(--ink);background:var(--paper-2);border-radius:4px;padding:38px 28px;position:relative;overflow:hidden;box-shadow:8px 8px 0 var(--ink);}
-  .hero h1{font-family:'Bangers',cursive;font-size:clamp(42px,8vw,84px);line-height:.92;letter-spacing:2px;max-width:620px;text-shadow:3px 3px 0 rgba(0,0,0,.12);}
+  .hero h1{font-family:'Bangers',cursive;font-size:clamp(38px,7.4vw,78px);line-height:.92;letter-spacing:2px;max-width:660px;text-shadow:3px 3px 0 rgba(0,0,0,.12);}
   .hero h1 .red{color:var(--red);-webkit-text-stroke:1.5px var(--ink);}
   .hero h1 .blue{color:var(--blue);-webkit-text-stroke:1.5px var(--ink);}
-  .hero p{font-size:18px;max-width:480px;margin-top:14px;font-weight:600;}
-  .burst{position:absolute;top:-18px;right:-18px;width:150px;height:150px;display:flex;align-items:center;justify-content:center;text-align:center;
-    font-family:'Bangers',cursive;font-size:26px;line-height:.9;letter-spacing:1px;transform:rotate(12deg);filter:drop-shadow(3px 3px 0 var(--ink));
+  .hero p{font-size:18px;max-width:500px;margin-top:14px;font-weight:600;}
+  .burst{position:absolute;top:-18px;right:-18px;width:158px;height:158px;display:flex;align-items:center;justify-content:center;text-align:center;
+    font-family:'Bangers',cursive;font-size:23px;line-height:.92;letter-spacing:1px;transform:rotate(12deg);filter:drop-shadow(3px 3px 0 var(--ink));
     background:var(--yellow);-webkit-text-stroke:0.5px var(--ink);color:var(--ink);
     clip-path:polygon(50% 0%,61% 12%,78% 6%,76% 24%,94% 22%,84% 38%,100% 48%,84% 60%,95% 76%,76% 74%,80% 92%,62% 84%,52% 100%,40% 85%,22% 94%,24% 75%,5% 78%,16% 60%,0% 50%,16% 40%,4% 24%,23% 26%,21% 7%,38% 14%);}
-  .burst span{transform:rotate(-4deg);padding:0 18px;}
+  .burst span{transform:rotate(-4deg);padding:0 20px;}
   .tool{max-width:1100px;margin:26px auto 0;padding:0 20px;}
   .tabs{display:flex;gap:10px;position:relative;z-index:2;}
   .tab{flex:1;background:var(--paper-2);border:4px solid var(--ink);border-bottom:none;color:var(--ink);font-family:'Bangers',cursive;letter-spacing:1px;font-size:20px;padding:12px;border-radius:4px 4px 0 0;cursor:pointer;transition:.12s;}
@@ -54,6 +55,7 @@
   .btn{background:var(--red);color:#fff;font-family:'Bangers',cursive;letter-spacing:1px;font-size:20px;padding:12px 26px;border:3px solid var(--ink);border-radius:3px;cursor:pointer;box-shadow:3px 3px 0 var(--ink);transition:.08s;}
   .btn:hover{transform:translate(1px,1px);box-shadow:2px 2px 0 var(--ink);}
   .btn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink);}
+  .btn:disabled{opacity:.55;cursor:not-allowed;transform:none;}
   .hint{font-size:14px;color:var(--muted);margin-top:10px;font-weight:600;}
   .drop{border:3px dashed var(--ink);border-radius:5px;padding:30px;text-align:center;background:#fffdf6;cursor:pointer;transition:.12s;}
   .drop:hover{background:#fff;border-color:var(--red);}
@@ -61,31 +63,43 @@
   .drop strong{color:var(--ink);}
   #fileInput{display:none;}
   #preview{max-width:150px;border:3px solid var(--ink);border-radius:3px;margin:14px auto 0;display:none;}
+
+  /* Inline errors instead of blocking alert() dialogs. */
+  .msg{display:none;margin-top:14px;border:3px solid var(--red);background:#fff4f2;border-radius:3px;padding:12px 14px;font-weight:700;font-size:15px;}
+  .msg.show{display:block;}
+
   .result{margin-top:22px;display:none;}
   .slab{background:#fffdf6;border:4px solid var(--ink);border-radius:5px;overflow:hidden;box-shadow:8px 8px 0 var(--ink);}
   .slab-label{background:var(--cgc-blue);color:#fff;padding:16px 18px;display:flex;align-items:center;gap:14px;border-bottom:4px solid var(--ink);}
   .slab-label .name{font-family:'Bangers',cursive;font-size:26px;letter-spacing:1px;line-height:1;flex:1;}
-  .slab-label .sub{font-family:'Anton',sans-serif;font-size:12px;letter-spacing:1px;opacity:.9;}
+  .slab-label .sub{font-family:'Anton',sans-serif;font-size:12px;letter-spacing:1px;opacity:.9;white-space:nowrap;}
   .slab-body{padding:20px;}
-  .prices{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center;margin-bottom:14px;}
+
+  .asking-head{font-family:'Anton',sans-serif;font-size:13px;letter-spacing:1.5px;color:var(--muted);margin-bottom:10px;}
+  .prices{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;text-align:center;margin-bottom:12px;}
   .price-cell{background:var(--paper);border:3px solid var(--ink);border-radius:3px;padding:12px 8px;}
   .price-cell .lbl{font-family:'Anton',sans-serif;font-size:11px;letter-spacing:1px;color:var(--muted);}
-  .price-cell .val{font-family:'Bangers',cursive;font-size:28px;line-height:1;margin-top:3px;}
-  .price-cell .val.red{color:var(--red);}
-  .source-note{font-size:13px;color:var(--muted);text-align:center;margin-bottom:14px;font-weight:600;}
+  /* All three cells are now equal weight. The middle one used to be big
+     and red, which made an ASKING average read as the book's value. */
+  .price-cell .val{font-family:'Bangers',cursive;font-size:26px;line-height:1;margin-top:3px;}
+  .source-note{font-size:14px;text-align:left;margin-bottom:16px;font-weight:600;background:#fffbe8;border-left:5px solid var(--yellow);padding:10px 12px;}
   .comp-btns{display:flex;gap:10px;flex-wrap:wrap;}
-  .comp-btns a{flex:1;min-width:140px;text-align:center;text-decoration:none;font-family:'Bangers',cursive;letter-spacing:1px;font-size:18px;padding:12px;border-radius:3px;border:3px solid var(--ink);box-shadow:3px 3px 0 var(--ink);transition:.08s;}
+  .comp-btns a{flex:1;min-width:150px;text-align:center;text-decoration:none;font-family:'Bangers',cursive;letter-spacing:1px;font-size:18px;padding:13px;border-radius:3px;border:3px solid var(--ink);box-shadow:3px 3px 0 var(--ink);transition:.08s;}
   .comp-btns a:hover{transform:translate(1px,1px);box-shadow:2px 2px 0 var(--ink);}
-  .comp-btns a.sold{background:var(--ink);color:var(--paper);}
+  .comp-btns a.sold{background:var(--ink);color:var(--paper);flex:2;}
+  .comp-btns a.sold small{display:block;font-family:'Archivo',sans-serif;font-size:11px;letter-spacing:0;font-weight:600;opacity:.75;margin-top:2px;}
   .comp-btns a.active{background:var(--yellow);color:var(--ink);}
   .listings{margin-top:16px;display:grid;grid-template-columns:repeat(auto-fill,minmax(115px,1fr));gap:10px;}
   .listing{background:#fffdf6;border:3px solid var(--ink);border-radius:3px;overflow:hidden;text-decoration:none;color:var(--ink);font-size:13px;font-weight:600;transition:.08s;}
   .listing:hover{transform:translateY(-2px);}
-  .listing img{width:100%;height:115px;object-fit:cover;background:var(--paper);border-bottom:3px solid var(--ink);}
+  /* contain, not cover — cover crops to the middle of the book and
+     throws away the logo, which is the part people recognise. */
+  .listing img{width:100%;height:115px;object-fit:contain;background:var(--paper);border-bottom:3px solid var(--ink);}
   .listing .p{padding:7px;}
   .listing .lp{font-family:'Bangers',cursive;color:var(--red);font-size:18px;}
   .spinner{width:34px;height:34px;border:4px solid var(--ink);border-top-color:var(--red);border-radius:50%;animation:spin .7s linear infinite;margin:20px auto;display:none;}
   @keyframes spin{to{transform:rotate(360deg);}}
+
   .hot{max-width:1100px;margin:56px auto 0;padding:0 20px;}
   .hot-head{background:var(--red);color:#fff;border:4px solid var(--ink);border-radius:4px;padding:12px 20px;display:flex;align-items:baseline;justify-content:space-between;flex-wrap:wrap;gap:6px;box-shadow:6px 6px 0 var(--ink);margin-bottom:22px;transform:rotate(-.6deg);}
   .hot-head h2{font-family:'Bangers',cursive;font-size:clamp(28px,5vw,44px);letter-spacing:2px;line-height:1;}
@@ -94,7 +108,7 @@
   .hot-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px;}
   .hot-card{background:#fffdf6;border:4px solid var(--ink);border-radius:4px;padding:14px;display:flex;gap:12px;box-shadow:5px 5px 0 var(--ink);transition:.1s;}
   .hot-card:hover{transform:translate(-1px,-1px);box-shadow:6px 6px 0 var(--ink);}
-  .hot-card img{width:62px;height:94px;object-fit:cover;border:3px solid var(--ink);border-radius:2px;background:var(--paper);flex-shrink:0;}
+  .hot-card img{width:62px;height:94px;object-fit:contain;border:3px solid var(--ink);border-radius:2px;background:var(--paper);flex-shrink:0;}
   .hot-card .info{flex:1;min-width:0;}
   .hot-card .nm{font-family:'Bangers',cursive;font-size:18px;letter-spacing:.5px;line-height:1;}
   .hot-card .rng{font-size:15px;margin-top:5px;font-weight:700;}
@@ -104,7 +118,7 @@
   .hot-card .links a{font-family:'Anton',sans-serif;font-size:12px;letter-spacing:.5px;text-decoration:none;}
   .hot-card .links a.sold{color:var(--ink);border-bottom:2px solid var(--ink);}
   .hot-card .links a.act{color:var(--red);border-bottom:2px solid var(--red);}
-  /* Gauge family cross-promo strip */
+
   .family{max-width:1100px;margin:60px auto 0;padding:0 20px;}
   .family-head{display:flex;align-items:center;gap:12px;margin-bottom:18px;}
   .family-head h2{font-family:'Bangers',cursive;font-size:clamp(24px,4vw,34px);letter-spacing:1.5px;line-height:1;white-space:nowrap;}
@@ -122,64 +136,91 @@
   .fam-card a.fam-btn.soon{background:var(--paper-2);color:var(--muted);cursor:default;}
   .fam-card a.fam-btn.soon:hover{transform:none;box-shadow:3px 3px 0 var(--ink);}
   @media(max-width:680px){.family-grid{grid-template-columns:1fr;}}
+
   footer{max-width:1100px;margin:64px auto 0;padding:22px 20px 60px;border-top:4px solid var(--ink);font-size:13px;color:var(--muted);text-align:center;font-weight:600;}
   footer a{color:var(--ink);font-weight:700;}
-  @media(max-width:520px){.prices{grid-template-columns:1fr 1fr;}.burst{width:110px;height:110px;font-size:19px;top:-10px;right:-10px;}.logo{font-size:26px;}}
+  :focus-visible{outline:3px solid var(--red);outline-offset:2px;}
+  @media(prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important;}}
+  @media(max-width:520px){.prices{grid-template-columns:1fr;}.burst{width:112px;height:112px;font-size:17px;top:-10px;right:-10px;}.logo{font-size:26px;}}
+  .scanlink{display:flex;align-items:center;gap:12px;background:var(--paper-2);border:3px solid var(--ink);
+    border-radius:4px;padding:13px 16px;margin-bottom:14px;text-decoration:none;color:var(--ink);
+    box-shadow:4px 4px 0 var(--ink);transition:.08s;}
+  .scanlink:hover{transform:translate(1px,1px);box-shadow:3px 3px 0 var(--ink);}
+  .scanlink .sl-ic{font-size:22px;flex-shrink:0;}
+  .scanlink .sl-t{flex:1;font-size:15px;font-weight:600;line-height:1.35;}
+  .scanlink .sl-t b{color:var(--red);}
+  .scanlink .sl-a{font-family:'Bangers',cursive;font-size:24px;color:var(--red);flex-shrink:0;}
 </style>
 </head>
 <body>
 <header class="halftone">
   <div class="masthead">
     <div class="logo">COMIC<b>GAUGE</b></div>
-    <div class="price-box"><div class="top">LIVE</div><div class="big">MKT</div></div>
+    <div class="price-box"><div class="top">EBAY</div><div class="big">LIVE</div></div>
   </div>
 </header>
 
 <section class="hero">
   <div class="hero-inner halftone">
-    <div class="burst"><span>SOLD<br>COMPS!</span></div>
-    <h1>SCAN A <span class="red">COMIC.</span><br>KNOW ITS <span class="blue">WORTH.</span></h1>
-    <p>Snap a cover or type a title. Pull live listings, jump straight to sold comps, and watch which key issues are heating up — in real time.</p>
+    <!-- The burst used to say "SOLD COMPS!" over a panel that shows no
+         sold data. It now sells the actual differentiator. -->
+    <div class="burst"><span>NO<br>MADE-UP<br>VALUES</span></div>
+    <h1>SCAN A <span class="red">COMIC.</span><br>KNOW WHAT <span class="blue">IT IS.</span></h1>
+    <p>Snap a cover or type a title. We identify the book and show what copies are
+       currently listed for &mdash; then send you to eBay's completed sales for what
+       they actually sold for. We don't invent a value.</p>
   </div>
 </section>
 
 <section class="tool">
+  <a class="scanlink" href="/scan.html">
+    <span class="sl-ic">&#128247;</span>
+    <span class="sl-t">Scanning a stack on your phone? <b>Use the mobile scanner</b> &mdash; it keeps a collection as you go.</span>
+    <span class="sl-a">&#8250;</span>
+  </a>
+
   <div class="tabs">
-    <button class="tab active" data-tab="search">SEARCH A TITLE</button>
-    <button class="tab" data-tab="scan">SCAN A COVER</button>
+    <button class="tab active" data-tab="search" type="button">SEARCH A TITLE</button>
+    <button class="tab" data-tab="scan" type="button">SCAN A COVER</button>
   </div>
   <div class="panel active" id="panel-search">
     <div class="searchrow">
       <input id="searchInput" type="text" placeholder="e.g. Amazing Spider-Man 300 CGC 9.8" />
-      <button class="btn" id="searchBtn">CHECK IT</button>
+      <button class="btn" id="searchBtn" type="button">CHECK IT</button>
     </div>
-    <p class="hint">Add a grade (CGC 9.8) for tighter comps. Works for raw or slabbed books.</p>
+    <p class="hint">Add a grade (CGC 9.8) for tighter results. Works for raw or slabbed books.</p>
   </div>
   <div class="panel" id="panel-scan">
-    <div class="drop" id="drop">
+    <div class="drop" id="drop" role="button" tabindex="0">
       <p><strong>Tap to upload</strong> or drop a cover photo</p>
-      <p style="font-size:13px;margin-top:6px;">Cover ID works best on clear, straight-on shots.</p>
-      <img id="preview" alt="preview" />
+      <p style="font-size:13px;margin-top:6px;">Works best with the whole cover in frame, straight on.</p>
+      <img id="preview" alt="Your uploaded cover" />
     </div>
     <input id="fileInput" type="file" accept="image/*" />
   </div>
+
+  <div class="msg" id="msg"></div>
   <div class="spinner" id="spinner"></div>
+
   <div class="result" id="result">
     <div class="slab">
       <div class="slab-label halftone">
-        <div class="name" id="rName">—</div>
-        <div class="sub" id="rSub">MARKET</div>
+        <div class="name" id="rName">&mdash;</div>
+        <div class="sub" id="rSub">LISTINGS</div>
       </div>
       <div class="slab-body">
+        <div class="asking-head">WHAT COPIES ARE LISTED FOR RIGHT NOW</div>
         <div class="prices">
-          <div class="price-cell"><div class="lbl">LOW</div><div class="val" id="rLow">—</div></div>
-          <div class="price-cell"><div class="lbl">AVG LISTING</div><div class="val red" id="rAvg">—</div></div>
-          <div class="price-cell"><div class="lbl">HIGH</div><div class="val" id="rHigh">—</div></div>
+          <div class="price-cell"><div class="lbl">LOWEST ASK</div><div class="val" id="rLow">&mdash;</div></div>
+          <div class="price-cell"><div class="lbl">MIDDLE ASK</div><div class="val" id="rMid">&mdash;</div></div>
+          <div class="price-cell"><div class="lbl">HIGHEST ASK</div><div class="val" id="rHigh">&mdash;</div></div>
         </div>
         <p class="source-note" id="rNote"></p>
         <div class="comp-btns">
-          <a class="sold" id="rSold" href="#" target="_blank" rel="noopener">VIEW SOLD COMPS</a>
-          <a class="active" id="rActive" href="#" target="_blank" rel="noopener">ALL LISTINGS</a>
+          <a class="sold" id="rSold" href="#" target="_blank" rel="noopener nofollow sponsored" data-out="sold">
+            SEE WHAT IT SOLD FOR<small>Opens completed sales on eBay</small>
+          </a>
+          <a class="active" id="rActive" href="#" target="_blank" rel="noopener nofollow sponsored" data-out="active">ALL LISTINGS</a>
         </div>
         <div class="listings" id="rListings"></div>
       </div>
@@ -189,8 +230,11 @@
 
 <section class="hot">
   <div class="hot-head halftone">
-    <h2>HOT COMICS <b>RIGHT NOW</b></h2>
-    <div class="sub">RE-RANKED LIVE BY MARKET ACTIVITY</div>
+    <!-- Was "HOT COMICS RIGHT NOW / RE-RANKED LIVE BY MARKET ACTIVITY".
+         The backend sorts by how many copies are listed, which is supply,
+         not heat. This now says what it actually does. -->
+    <h2>KEY ISSUES <b>WE WATCH</b></h2>
+    <div class="sub">HAND-PICKED LIST &middot; LIVE LISTING COUNTS</div>
   </div>
   <div class="spinner" id="hotSpinner" style="display:block;"></div>
   <div class="hot-grid" id="hotGrid"></div>
@@ -204,107 +248,235 @@
   <div class="family-grid">
     <div class="fam-card">
       <div class="fam-name">CARD<b>GAUGE</b></div>
-      <p class="fam-line">Collect cards too? Scan any sports or Pokémon card and get the same instant market read.</p>
-      <a class="fam-btn" href="https://cardgauge.com" target="_blank" rel="noopener">SCAN A CARD →</a>
+      <p class="fam-line">Collect cards too? Scan any sports or Pok&eacute;mon card and get real sold comps, not asking prices.</p>
+      <a class="fam-btn" href="https://cardgauge.com" target="_blank" rel="noopener" data-out="cardgauge">SCAN A CARD</a>
     </div>
     <div class="fam-card">
       <div class="fam-name">WORTH<span class="alt">GAUGE</span></div>
-      <p class="fam-line">Bigger collection? Track and value everything you own in one place — built for insurance and records.</p>
-      <a class="fam-btn" href="https://worthgauge.com" target="_blank" rel="noopener">TRACK IT →</a>
+      <p class="fam-line">Bigger collection? Track and value everything you own in one place &mdash; built for insurance and records.</p>
+      <a class="fam-btn" href="https://worthgauge.com" target="_blank" rel="noopener" data-out="worthgauge">TRACK IT</a>
     </div>
     <div class="fam-card">
       <div class="fam-name">HOTWHEELS<span class="alt2">GAUGE</span></div>
-      <p class="fam-line">Redlines and Treasure Hunts have a market too. The same scan-and-comps tool, for diecast.</p>
+      <p class="fam-line">Redlines and Treasure Hunts have a market too. The same scan-and-listings tool, for diecast.</p>
       <a class="fam-btn soon" href="#" onclick="return false;">COMING SOON</a>
     </div>
   </div>
 </section>
 
 <footer>
-  <p>ComicGauge shows live eBay listings and links to completed-sale comps. Not financial advice; values fluctuate. Part of the Gauge family — see also <a href="https://cardgauge.com" target="_blank" rel="noopener">CardGauge</a> &amp; <a href="https://worthgauge.com" target="_blank" rel="noopener">WorthGauge</a>.</p>
+  <p>ComicGauge shows live eBay listings and links out to completed sales. Listing prices are
+     what sellers are asking, not what books sell for. Not financial advice. Part of the Gauge family &mdash; see also
+     <a href="https://cardgauge.com" target="_blank" rel="noopener">CardGauge</a> &amp;
+     <a href="https://worthgauge.com" target="_blank" rel="noopener">WorthGauge</a>.</p>
 </footer>
 
 <script>
-  const API = window.location.origin;
-  document.querySelectorAll('.tab').forEach(t => {
-    t.addEventListener('click', () => {
-      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
-      document.querySelectorAll('.panel').forEach(x => x.classList.remove('active'));
-      t.classList.add('active');
-      document.getElementById('panel-' + t.dataset.tab).classList.add('active');
-    });
+(function(){
+"use strict";
+
+var API = window.location.origin;
+
+/* eBay listing titles are seller-written text. They went straight into
+   innerHTML unescaped, which breaks on any quote and is the one place
+   third-party text reaches the parser. */
+function esc(s){
+  if(s == null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                  .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function safeUrl(u){
+  var s = String(u||'').trim();
+  return /^https?:\/\//i.test(s) ? esc(s) : '';
+}
+function fmt(v){
+  var n = Number(v);
+  return (v == null || !isFinite(n)) ? '\u2014' : '$' + n.toLocaleString(undefined,{maximumFractionDigits:0});
+}
+
+/* Log to POST /api/event. Fails silently, never blocks the page. */
+function logEvent(event, detail, count){
+  try{
+    fetch(API + '/api/event', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ event:event, detail:detail, count:count }),
+      keepalive:true
+    }).catch(function(){});
+  }catch(e){}
+}
+
+var spinner = document.getElementById('spinner');
+var result  = document.getElementById('result');
+var msgBox  = document.getElementById('msg');
+var searchBtn = document.getElementById('searchBtn');
+
+function showMsg(text){ msgBox.textContent = text; msgBox.classList.add('show'); }
+function clearMsg(){ msgBox.classList.remove('show'); msgBox.textContent = ''; }
+
+/* tabs */
+document.querySelectorAll('.tab').forEach(function(t){
+  t.addEventListener('click', function(){
+    document.querySelectorAll('.tab').forEach(function(x){ x.classList.remove('active'); });
+    document.querySelectorAll('.panel').forEach(function(x){ x.classList.remove('active'); });
+    t.classList.add('active');
+    document.getElementById('panel-' + t.dataset.tab).classList.add('active');
+    logEvent('tab', t.dataset.tab);
   });
-  const spinner = document.getElementById('spinner'), result = document.getElementById('result');
-  function fmt(v){ return v == null ? '—' : '$' + Number(v).toLocaleString(undefined,{maximumFractionDigits:0}); }
-  function renderResult(d){
-    document.getElementById('rName').textContent = d.identified || d.query || 'Result';
-    document.getElementById('rSub').textContent  = d.listingCount ? (d.listingCount + ' LIVE') : 'MARKET';
-    document.getElementById('rLow').textContent  = fmt(d.lowPrice);
-    document.getElementById('rAvg').textContent  = fmt(d.avgPrice);
-    document.getElementById('rHigh').textContent = fmt(d.highPrice);
-    document.getElementById('rNote').textContent = d.note || '';
-    document.getElementById('rSold').href = d.soldCompsUrl || '#';
-    document.getElementById('rActive').href = d.activeListingsUrl || '#';
-    const wrap = document.getElementById('rListings'); wrap.innerHTML = '';
-    (d.listings || []).forEach(l => {
-      const a = document.createElement('a');
-      a.className='listing'; a.href=l.url; a.target='_blank'; a.rel='noopener';
-      a.innerHTML = '<img src="'+(l.image||'')+'" alt=""><div class="p"><div class="lp">'+fmt(l.price)+'</div>'+(l.condition||'')+'</div>';
-      wrap.appendChild(a);
-    });
-    result.style.display='block';
+});
+
+function renderResult(d){
+  clearMsg();
+  document.getElementById('rName').textContent = d.identified || d.query || 'Result';
+  document.getElementById('rSub').textContent  = d.listingCount ? (d.listingCount + ' LISTED') : 'NO LISTINGS';
+  document.getElementById('rLow').textContent  = fmt(d.lowPrice);
+  /* Prefer the median. One $3k slab drags the mean badly on a book with
+     a wide condition spread. Falls back to avgPrice on older responses. */
+  document.getElementById('rMid').textContent  = fmt(d.medianPrice != null ? d.medianPrice : d.avgPrice);
+  document.getElementById('rHigh').textContent = fmt(d.highPrice);
+
+  document.getElementById('rNote').textContent = d.listingCount
+    ? 'These are asking prices from ' + d.listingCount + ' active listing' + (d.listingCount === 1 ? '' : 's') +
+      ', not what copies sold for. Condition varies a lot across them \u2014 tap below for real completed sales.'
+    : 'No active listings found for this book right now. Completed sales may still show something.';
+
+  document.getElementById('rSold').href   = safeUrl(d.soldCompsUrl) || '#';
+  document.getElementById('rActive').href = safeUrl(d.activeListingsUrl) || '#';
+
+  var wrap = document.getElementById('rListings');
+  wrap.innerHTML = '';
+  (d.listings || []).forEach(function(l){
+    var href = safeUrl(l.url);
+    if(!href) return;
+    var a = document.createElement('a');
+    a.className = 'listing';
+    a.href = href; a.target = '_blank';
+    a.rel = 'noopener nofollow sponsored';
+    a.setAttribute('data-out','listing');
+    a.innerHTML = '<img src="' + safeUrl(l.image) + '" alt="' + esc(l.title || '') + '" loading="lazy">'
+      + '<div class="p"><div class="lp">' + fmt(l.price) + '</div>' + esc(l.condition || '') + '</div>';
+    wrap.appendChild(a);
+  });
+
+  result.style.display = 'block';
+  logEvent('result_viewed', d.query || d.identified, d.listingCount || 0);
+}
+
+async function runSearch(q){
+  if(!q){ showMsg('Type a title and issue number first \u2014 e.g. Amazing Spider-Man 300.'); return; }
+  clearMsg();
+  result.style.display = 'none';
+  spinner.style.display = 'block';
+  searchBtn.disabled = true;
+  logEvent('search', q);
+  try{
+    var r = await fetch(API + '/api/market?q=' + encodeURIComponent(q));
+    if(!r.ok) throw new Error('The market lookup is offline right now. Try again in a moment.');
+    var d = await r.json();
+    if(d.success) renderResult(d);
+    else showMsg(d.error || 'Nothing found. Add the issue number and try again.');
+  }catch(e){
+    showMsg(e.message || 'Market lookup failed. Try again in a moment.');
+    logEvent('search_failed', q);
   }
-  async function runSearch(q){
-    if(!q) return;
-    result.style.display='none'; spinner.style.display='block';
+  spinner.style.display = 'none';
+  searchBtn.disabled = false;
+}
+
+searchBtn.addEventListener('click', function(){ runSearch(document.getElementById('searchInput').value.trim()); });
+document.getElementById('searchInput').addEventListener('keydown', function(e){
+  if(e.key === 'Enter') runSearch(e.target.value.trim());
+});
+
+/* scan */
+var drop = document.getElementById('drop');
+var fileInput = document.getElementById('fileInput');
+var preview = document.getElementById('preview');
+
+drop.addEventListener('click', function(){ fileInput.click(); });
+drop.addEventListener('keydown', function(e){ if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); fileInput.click(); } });
+drop.addEventListener('dragover', function(e){ e.preventDefault(); drop.style.borderColor = 'var(--red)'; });
+drop.addEventListener('dragleave', function(){ drop.style.borderColor = ''; });
+drop.addEventListener('drop', function(e){
+  e.preventDefault(); drop.style.borderColor = '';
+  if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+});
+fileInput.addEventListener('change', function(e){ if(e.target.files[0]) handleFile(e.target.files[0]); });
+
+function handleFile(file){
+  var reader = new FileReader();
+  reader.onerror = function(){ showMsg('Couldn\u2019t read that image file. Try a different photo.'); };
+  reader.onload = async function(){
+    preview.src = reader.result;
+    preview.style.display = 'block';
+    clearMsg();
+    result.style.display = 'none';
+    spinner.style.display = 'block';
+    logEvent('scan_started');
     try{
-      const r = await fetch(API + '/api/market?q=' + encodeURIComponent(q));
-      const d = await r.json();
-      if(d.success) renderResult(d); else alert(d.error || 'No results. Add the issue number and try again.');
-    }catch(e){ alert('Market lookup failed. Try again.'); }
-    spinner.style.display='none';
-  }
-  document.getElementById('searchBtn').addEventListener('click', () => runSearch(document.getElementById('searchInput').value.trim()));
-  document.getElementById('searchInput').addEventListener('keydown', e => { if(e.key==='Enter') runSearch(e.target.value.trim()); });
-  const drop=document.getElementById('drop'),fileInput=document.getElementById('fileInput'),preview=document.getElementById('preview');
-  drop.addEventListener('click', () => fileInput.click());
-  drop.addEventListener('dragover', e => { e.preventDefault(); drop.style.borderColor='var(--red)'; });
-  drop.addEventListener('dragleave', () => drop.style.borderColor='');
-  drop.addEventListener('drop', e => { e.preventDefault(); drop.style.borderColor=''; if(e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]); });
-  fileInput.addEventListener('change', e => { if(e.target.files[0]) handleFile(e.target.files[0]); });
-  async function handleFile(file){
-    const reader = new FileReader();
-    reader.onload = async () => {
-      preview.src = reader.result; preview.style.display='block';
-      result.style.display='none'; spinner.style.display='block';
-      try{
-        const r = await fetch(API + '/api/scan', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ image: reader.result }) });
-        const d = await r.json();
-        if(d.success) renderResult(d); else alert(d.error || 'Could not identify the comic. Try the search lookup.');
-      }catch(e){ alert('Scan failed. Try again or use search.'); }
-      spinner.style.display='none';
-    };
-    reader.readAsDataURL(file);
-  }
-  async function loadHot(){
-    try{
-      const r = await fetch(API + '/api/hot-comics');
-      const d = await r.json();
-      const grid = document.getElementById('hotGrid');
-      document.getElementById('hotSpinner').style.display='none';
-      grid.innerHTML='';
-      (d.items||[]).forEach(it => {
-        const range = (it.lowPrice!=null && it.highPrice!=null) ? '<b>'+fmt(it.lowPrice)+'</b> – '+fmt(it.highPrice) : 'No live listings';
-        const div = document.createElement('div'); div.className='hot-card';
-        div.innerHTML = '<img src="'+(it.image||'')+'" alt=""><div class="info"><div class="nm">'+it.title+'</div><div class="rng">'+range+'</div><div class="cnt">'+(it.listingCount||0)+' listed</div><div class="links"><a class="sold" href="'+it.soldCompsUrl+'" target="_blank" rel="noopener">SOLD</a> <a class="act" href="'+it.listingsUrl+'" target="_blank" rel="noopener">LISTINGS</a></div></div>';
-        grid.appendChild(div);
+      var r = await fetch(API + '/api/scan', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ image: reader.result })
       });
+      if(!r.ok) throw new Error('The scanner is offline right now. Try the search tab.');
+      var d = await r.json();
+      if(d.success){ renderResult(d); logEvent('scan_success', d.identified); }
+      else { showMsg(d.error || 'Couldn\u2019t read that cover. Try the search tab.'); logEvent('scan_failed'); }
     }catch(e){
-      document.getElementById('hotSpinner').style.display='none';
-      document.getElementById('hotGrid').innerHTML='<p style="color:var(--muted);font-weight:600;">Hot board is warming up — refresh in a moment.</p>';
+      showMsg(e.message || 'Scan failed. Try again or use search.');
+      logEvent('scan_failed');
     }
+    spinner.style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+/* watchlist board */
+async function loadHot(){
+  var grid = document.getElementById('hotGrid');
+  var hs = document.getElementById('hotSpinner');
+  try{
+    var r = await fetch(API + '/api/hot-comics');
+    if(!r.ok) throw new Error('offline');
+    var d = await r.json();
+    hs.style.display = 'none';
+    grid.innerHTML = '';
+    (d.items || []).forEach(function(it){
+      var range = (it.lowPrice != null && it.highPrice != null)
+        ? '<b>' + fmt(it.lowPrice) + '</b> &ndash; ' + fmt(it.highPrice)
+        : 'No live listings';
+      var div = document.createElement('div');
+      div.className = 'hot-card';
+      div.innerHTML =
+        '<img src="' + safeUrl(it.image) + '" alt="' + esc(it.title) + '" loading="lazy">'
+        + '<div class="info"><div class="nm">' + esc(it.title) + '</div>'
+        + '<div class="rng">' + range + '</div>'
+        + '<div class="cnt">' + (it.listingCount || 0) + ' listed now</div>'
+        + '<div class="links">'
+          + '<a class="sold" href="' + safeUrl(it.soldCompsUrl) + '" target="_blank" rel="noopener nofollow sponsored" data-out="hot_sold">SOLD</a> '
+          + '<a class="act" href="' + safeUrl(it.listingsUrl) + '" target="_blank" rel="noopener nofollow sponsored" data-out="hot_listings">LISTINGS</a>'
+        + '</div></div>';
+      grid.appendChild(div);
+    });
+    if(!grid.children.length){
+      grid.innerHTML = '<p style="color:var(--muted);font-weight:600;">No listings came back for the watchlist. Refresh in a moment.</p>';
+    }
+  }catch(e){
+    hs.style.display = 'none';
+    grid.innerHTML = '<p style="color:var(--muted);font-weight:600;">The watchlist is warming up \u2014 refresh in a moment.</p>';
   }
-  loadHot();
+}
+
+/* one delegated handler for every outbound affiliate click */
+document.addEventListener('click', function(e){
+  var a = e.target.closest('[data-out]');
+  if(a) logEvent('outbound', a.dataset.out);
+});
+
+loadHot();
+logEvent('page_view');
+
+})();
 </script>
 </body>
 </html>
