@@ -1,1 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover"/>
+<title>ComicGauge — Scan a comic</title>
+<meta name="description" content="Scan a comic to identify it and see what copies are listed for. Real sold prices link out to eBay."/>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#0a0e1a; --surface:#111827; --surface2:#1a2235; --surface3:#212d42;
+  --border:#1e2d45; --border2:#2a3a55;
+  --text:#f1f5f9; --text2:#cbd5e1; --text3:#94a3b8; --muted:#64748b;
+  --ink:#e8462a;              /* comic four-colour red */
+  --gold:#f5b301; --green:#22c55e; --blue:#4a9eff;
+  --fd:'Oswald',sans-serif; --fb:'Inter',sans-serif; --fm:'JetBrains Mono',monospace;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html,body{background:var(--bg);}
+body{font-family:var(--fb);color:var(--text);line-height:1.5;font-size:16px;-webkit-font-smoothing:antialiased;
+  padding-bottom:calc(84px + env(safe-area-inset-bottom));}
 
+.bar{position:sticky;top:0;z-index:30;background:rgba(10,14,26,.92);backdrop-filter:blur(10px);
+  border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;}
+.brand{font-family:var(--fd);font-size:17px;font-weight:700;letter-spacing:1.5px;}
+.brand b{color:var(--ink);font-weight:700;}
+.count{font-family:var(--fm);font-size:11px;color:var(--text3);}
+
+.wrap{max-width:560px;margin:0 auto;padding:16px;}
+
+/* ---- scan screen ---- */
+.drop{border:2px dashed var(--border2);border-radius:16px;padding:40px 20px;text-align:center;background:var(--surface);}
+.drop h1{font-family:var(--fd);font-size:26px;font-weight:600;letter-spacing:.5px;margin-bottom:8px;}
+.drop p{color:var(--text3);font-size:14px;max-width:34ch;margin:0 auto 20px;}
+.shot{width:72px;height:72px;border-radius:50%;background:var(--ink);display:flex;align-items:center;justify-content:center;
+  margin:0 auto 16px;font-size:30px;}
+.btn{display:inline-block;border:none;border-radius:10px;padding:14px 22px;font-family:var(--fb);font-size:15px;
+  font-weight:700;cursor:pointer;text-decoration:none;}
+.btn-primary{background:var(--ink);color:#fff;}
+.btn-ghost{background:var(--surface2);color:var(--text);border:1px solid var(--border2);}
+.hint{font-family:var(--fm);font-size:11px;color:var(--muted);margin-top:14px;line-height:1.6;}
+
+/* ---- result ---- */
+.cover{width:100%;aspect-ratio:2/3;max-height:46vh;object-fit:contain;background:#05070d;
+  border-radius:14px;border:1px solid var(--border);display:block;margin-bottom:18px;}
+
+.ident{margin-bottom:20px;}
+.ident h1{font-family:var(--fd);font-size:clamp(30px,8vw,42px);font-weight:700;line-height:1.02;letter-spacing:.5px;}
+.ident .series{color:var(--text3);font-size:15px;margin-top:4px;}
+.ident .runs{margin-top:10px;font-size:13px;color:var(--gold);background:rgba(245,179,1,.08);
+  border:1px solid rgba(245,179,1,.28);border-radius:9px;padding:9px 12px;line-height:1.5;}
+
+.block{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:12px;}
+.block h2{font-family:var(--fb);font-size:13px;font-weight:700;color:var(--text3);margin-bottom:12px;}
+
+.range{font-family:var(--fd);font-size:34px;font-weight:600;letter-spacing:.5px;line-height:1;}
+.range .dash{color:var(--muted);margin:0 6px;}
+.basis{font-size:13px;color:var(--text2);line-height:1.55;margin-top:10px;}
+.basis b{color:var(--gold);font-weight:600;}
+.split{display:flex;gap:20px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
+.split div{flex:1;}
+.split .k{font-family:var(--fm);font-size:10px;color:var(--muted);margin-bottom:3px;}
+.split .v{font-family:var(--fm);font-size:15px;font-weight:700;}
+
+.sold{display:block;text-align:center;background:var(--surface2);border:1px solid var(--blue);border-radius:11px;
+  padding:14px;color:var(--blue);font-weight:700;font-size:15px;text-decoration:none;margin-top:14px;}
+.sold span{display:block;font-family:var(--fm);font-size:10.5px;color:var(--text3);font-weight:500;margin-top:4px;}
+.shop{display:block;text-align:center;padding:12px;color:var(--text3);font-size:13.5px;text-decoration:none;margin-top:6px;}
+
+.fact{font-size:16px;line-height:1.6;}
+.fact.none{color:var(--text3);font-size:14px;}
+.fact .why{color:var(--text2);font-size:14px;margin-top:6px;line-height:1.6;}
+
+.rows{display:flex;flex-direction:column;}
+.row{display:flex;justify-content:space-between;gap:16px;padding:11px 0;border-bottom:1px solid var(--border);font-size:14.5px;}
+.row:last-child{border-bottom:none;}
+.row .k{color:var(--text3);flex-shrink:0;}
+.row .v{text-align:right;font-weight:600;}
+
+.feedback{text-align:center;padding:18px 16px;}
+.feedback p{font-size:14px;color:var(--text3);margin-bottom:12px;}
+.fbtns{display:flex;gap:10px;justify-content:center;}
+.fbtn{flex:1;max-width:150px;background:var(--surface2);border:1px solid var(--border2);border-radius:10px;
+  padding:11px;color:var(--text2);font-family:var(--fb);font-size:14px;font-weight:600;cursor:pointer;}
+.fbtn:hover{border-color:var(--text3);color:var(--text);}
+.fbtn.picked{border-color:var(--ink);color:var(--ink);}
+
+.dock{position:fixed;left:0;right:0;bottom:0;z-index:40;background:rgba(10,14,26,.95);backdrop-filter:blur(10px);
+  border-top:1px solid var(--border);padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+  display:flex;gap:12px;align-items:center;max-width:560px;margin:0 auto;}
+.dock .again{background:none;border:none;color:var(--text3);font-family:var(--fb);font-size:11px;font-weight:600;
+  cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;padding:4px 6px;}
+.dock .again .ic{font-size:22px;}
+.add{flex:1;background:var(--ink);color:#fff;border:none;border-radius:100px;padding:16px;
+  font-family:var(--fb);font-size:16px;font-weight:700;cursor:pointer;}
+.add.done{background:var(--green);color:#04240f;}
+.add:disabled{opacity:.6;}
+
+.state{text-align:center;padding:60px 20px;color:var(--text3);}
+.spin{width:34px;height:34px;border:3px solid var(--surface3);border-top-color:var(--ink);border-radius:50%;
+  animation:spin .8s linear infinite;margin:0 auto 14px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.state h3{font-family:var(--fd);font-size:19px;color:var(--text);margin-bottom:6px;font-weight:600;}
+.state p{font-size:14px;max-width:36ch;margin:0 auto 18px;line-height:1.6;}
+
+.toast{position:fixed;bottom:calc(96px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);
+  background:var(--surface3);border:1px solid var(--border2);color:var(--text);padding:11px 20px;border-radius:9px;
+  font-size:13.5px;font-weight:600;z-index:60;max-width:88vw;text-align:center;}
+
+.foot{text-align:center;padding:22px 16px 8px;font-size:12px;color:var(--muted);line-height:1.7;}
+.foot a{color:var(--text3);text-decoration:none;}
+
+:focus-visible{outline:2px solid var(--ink);outline-offset:2px;}
+@media(prefers-reduced-motion:reduce){*{animation-duration:.001ms!important;transition-duration:.001ms!important;}}
+</style>
+</head>
+<body>
+
+<div class="bar">
+  <div class="brand">COMIC<b>GAUGE</b></div>
+  <div class="count" id="collCount"></div>
+</div>
+
+<div class="wrap" id="app"></div>
+
+<div class="foot">
+  Listing prices come from active eBay listings. Sold prices open on eBay.<br/>
+  <a href="https://www.cardgauge.com" target="_blank" rel="noopener">CardGauge</a> ·
+  <a href="https://www.worthgauge.com" target="_blank" rel="noopener">WorthGauge</a>
+</div>
+
+<input type="file" id="picker" accept="image/*" capture="environment" hidden/>
+
+<script>
+(function(){
+"use strict";
+
+/* ============================================================
+   CONFIG — point this at comicgauge-api
+   ============================================================ */
+var API = 'https://comicgauge-api.onrender.com';
+
+/* ============================================================
+   CURATED KEY ISSUES — this is the whole differentiator.
+   Nothing here is generated. If a book isn't in this map the
+   screen says we don't have it, rather than inventing a fact.
+
+   Thor #181 is seeded deliberately: a competitor's scanner
+   labelled it "Origin of Galactus", which is Thor #169. Keys
+   like this one are why the list is hand-built.
+
+   key = lowercase title + '#' + issue, no spaces.
+   ============================================================ */
+var KEY_ISSUES = {
+  'amazingspider-man#300': { fact:'First full appearance of Venom', why:'Todd McFarlane cover and art. The black-suit payoff.' },
+  'amazingspider-man#129': { fact:'First appearance of the Punisher', why:'Also the first Jackal.' },
+  'incrediblehulk#181':    { fact:'First full appearance of Wolverine', why:'Cameo is in #180.' },
+  'giant-sizex-men#1':     { fact:'First appearance of Storm, Colossus and Nightcrawler', why:'Launches the new X-Men team.' },
+  'newmutants#98':         { fact:'First appearance of Deadpool', why:'Also first Domino and Gideon.' },
+  'thor#169':              { fact:'Origin of Galactus', why:'Galactus tells his own origin to Thor.' },
+  'thor#181':              { fact:null, why:'Neal Adams interior art on a Mephisto and Loki story, "One God Must Fall!". A well-liked Bronze Age issue, but not a key.' },
+  'ultimatefallout#4':     { fact:'First appearance of Miles Morales', why:'Bendis and Pichelli.' },
+  'batmanadventures#12':   { fact:'First comic appearance of Harley Quinn', why:'She debuted on the animated series first.' },
+  'edgeofspider-verse#2':  { fact:'First appearance of Spider-Gwen', why:'Gwen Stacy as Spider-Woman.' },
+  'walkingdead#1':         { fact:'First appearance of Rick Grimes', why:'Kirkman and Moore, Image 2003.' }
+};
+
+function keyFor(title, issue){
+  return String(title||'').toLowerCase().replace(/[^a-z0-9#-]/g,'') + '#' + String(issue||'').trim();
+}
+
+/* Era is arithmetic on the cover year, not an opinion. */
+function eraFor(year){
+  var y = parseInt(year,10);
+  if(!y) return '';
+  if(y < 1956) return 'Golden Age';
+  if(y < 1970) return 'Silver Age';
+  if(y < 1986) return 'Bronze Age';
+  if(y < 1992) return 'Copper Age';
+  return 'Modern Age';
+}
+
+/* Titles with several runs — flag the ambiguity instead of hiding it. */
+var MULTI_RUN = ['amazing spider-man','spider-man','x-men','thor','daredevil','fantastic four',
+  'captain america','avengers','hulk','incredible hulk','iron man','batman','superman','wonder woman','flash'];
+function hasMultipleRuns(title){
+  var t = String(title||'').toLowerCase().trim();
+  return MULTI_RUN.indexOf(t) !== -1;
+}
+
+/* ---------- state ---------- */
+var current = null;
+var photoDataUrl = '';
+var $app = document.getElementById('app');
+var $picker = document.getElementById('picker');
+
+/* ---------- helpers ---------- */
+function esc(s){
+  if(s==null) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                  .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+function money(n){
+  var v = Number(n);
+  if(!isFinite(v) || v <= 0) return null;
+  return '$' + (v >= 100 ? Math.round(v).toLocaleString() : v.toFixed(2).replace(/\.00$/,''));
+}
+function toast(msg){
+  document.querySelectorAll('.toast').forEach(function(t){t.remove();});
+  var t = document.createElement('div');
+  t.className='toast'; t.textContent=msg;
+  document.body.appendChild(t);
+  setTimeout(function(){t.remove();}, 2600);
+}
+/* Log from day one. Fails silently — never blocks the UI. */
+function logEvent(event, extra){
+  try{
+    fetch(API + '/api/event', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify(Object.assign({ event:event, ts:Date.now() }, extra||{})),
+      keepalive:true
+    }).catch(function(){});
+  }catch(e){}
+}
+
+/* ---------- local collection (no signup wall) ---------- */
+function getCollection(){
+  try{ return JSON.parse(localStorage.getItem('cg_comics')||'[]'); }catch(e){ return []; }
+}
+function saveCollection(list){
+  try{ localStorage.setItem('cg_comics', JSON.stringify(list)); }catch(e){}
+  paintCount();
+}
+function paintCount(){
+  var n = getCollection().length;
+  document.getElementById('collCount').textContent = n ? (n + (n===1?' comic':' comics')) : '';
+}
+function inCollection(c){
+  return getCollection().some(function(x){ return x.key === c.key; });
+}
+
+/* ---------- parse whatever the API gives back ---------- */
+function parseTitleIssue(s){
+  var str = String(s||'').trim();
+  var m = str.match(/^(.*?)\s*#\s*(\d{1,4}[a-z]?)\b/i);
+  if(m) return { title:m[1].trim(), issue:m[2] };
+  var t = str.match(/^(.*?)\s+(\d{1,4})\s*$/);
+  if(t) return { title:t[1].trim(), issue:t[2] };
+  return { title:str, issue:'' };
+}
+
+function normalize(d){
+  var raw = d.identified || d.query || d.cleanQuery || '';
+  var ti  = parseTitleIssue(raw);
+  var year = '';
+  var ym = String(d.coverDate || d.coverYear || raw).match(/\b(19|20)\d{2}\b/);
+  if(ym) year = ym[0];
+
+  return {
+    key: keyFor(ti.title, ti.issue),
+    title: ti.title || 'Unidentified',
+    issue: ti.issue,
+    raw: raw,
+    publisher: d.publisher || '',
+    year: year,
+    low:  d.lowPrice != null ? d.lowPrice : (d.raw && d.raw.low),
+    high: d.highPrice != null ? d.highPrice : (d.raw && d.raw.high),
+    mid:  d.medianPrice != null ? d.medianPrice : d.avgPrice,
+    count: d.listingCount || 0,
+    slabbed: d.slabbed || null,
+    soldUrl: d.soldCompsUrl || '',
+    shopUrl: d.activeListingsUrl || '',
+    addedAt: Date.now()
+  };
+}
+
+/* ---------- screens ---------- */
+function renderScan(){
+  $app.innerHTML =
+    '<div class="drop">'
+      + '<div class="shot">📕</div>'
+      + '<h1>Scan a comic</h1>'
+      + '<p>Frame the whole front cover, flat and square on. Bags and glare are fine.</p>'
+      + '<button class="btn btn-primary" id="startScan">Take a photo</button>'
+      + '<div class="hint">We identify the book and show what copies are currently listed for.<br/>'
+      + 'For what they actually sell for, we send you to eBay\u2019s sold listings.</div>'
+    + '</div>';
+  document.getElementById('startScan').addEventListener('click', function(){ $picker.click(); });
+}
+
+function renderLoading(){
+  $app.innerHTML = '<div class="state"><div class="spin"></div>'
+    + '<h3>Reading the cover</h3><p>Checking the title, issue number and date.</p></div>';
+}
+
+function renderFailed(msg){
+  $app.innerHTML = '<div class="state">'
+    + '<h3>Couldn\u2019t read that cover</h3>'
+    + '<p>' + esc(msg || 'Try again with the whole cover in frame and less glare across the logo.') + '</p>'
+    + '<button class="btn btn-primary" id="retry">Take another photo</button></div>';
+  document.getElementById('retry').addEventListener('click', function(){ $picker.click(); });
+}
+
+function renderResult(c){
+  current = c;
+  var lo = money(c.low), hi = money(c.high);
+  var k = KEY_ISSUES[c.key];
+  var era = eraFor(c.year);
+  var saved = inCollection(c);
+
+  var priceBlock;
+  if(lo && hi && c.count > 0){
+    priceBlock = '<div class="block">'
+      + '<h2>Currently listed on eBay</h2>'
+      + '<div class="range">' + lo + '<span class="dash">–</span>' + hi + '</div>'
+      + '<div class="basis">These are <b>asking prices</b> from ' + c.count
+      + ' active listing' + (c.count===1?'':'s') + ', not what copies sold for. '
+      + 'Condition varies enormously across them.</div>'
+      + (c.slabbed && c.slabbed.count
+          ? '<div class="split">'
+            + '<div><div class="k">Raw</div><div class="v">' + (money(c.mid) || '—') + '</div></div>'
+            + '<div><div class="k">Graded</div><div class="v">' + (money(c.slabbed.median) || '—') + '</div></div>'
+            + '</div>'
+          : '')
+      + (c.soldUrl
+          ? '<a class="sold" href="' + esc(c.soldUrl) + '" target="_blank" rel="noopener nofollow sponsored" data-out="sold">'
+            + 'See what copies actually sold for<span>Opens completed sales on eBay</span></a>'
+          : '')
+      + (c.shopUrl
+          ? '<a class="shop" href="' + esc(c.shopUrl) + '" target="_blank" rel="noopener nofollow sponsored" data-out="shop">Browse copies for sale</a>'
+          : '')
+    + '</div>';
+  } else {
+    priceBlock = '<div class="block">'
+      + '<h2>Currently listed on eBay</h2>'
+      + '<div class="fact none">No active listings found for this book right now.</div>'
+      + (c.soldUrl ? '<a class="sold" href="' + esc(c.soldUrl) + '" target="_blank" rel="noopener nofollow sponsored" data-out="sold">'
+          + 'Check sold listings on eBay<span>Opens completed sales</span></a>' : '')
+    + '</div>';
+  }
+
+  var factBlock = '<div class="block"><h2>Key issue</h2>'
+    + (k
+        ? (k.fact
+            ? '<div class="fact"><b>' + esc(k.fact) + '</b><div class="why">' + esc(k.why) + '</div></div>'
+            : '<div class="fact">Not a key issue.<div class="why">' + esc(k.why) + '</div></div>')
+        : '<div class="fact none">This book isn\u2019t on our key-issue list. We only show key facts we\u2019ve checked by hand, so we\u2019d rather say nothing than guess.</div>')
+    + '</div>';
+
+  var rows = '';
+  if(c.publisher) rows += '<div class="row"><span class="k">Publisher</span><span class="v">' + esc(c.publisher) + '</span></div>';
+  if(c.year)      rows += '<div class="row"><span class="k">Cover year</span><span class="v">' + esc(c.year) + '</span></div>';
+  if(era)         rows += '<div class="row"><span class="k">Era</span><span class="v">' + esc(era) + '</span></div>';
+  var infoBlock = rows ? '<div class="block"><h2>Details</h2><div class="rows">' + rows + '</div></div>' : '';
+
+  $app.innerHTML =
+      (photoDataUrl ? '<img class="cover" src="' + esc(photoDataUrl) + '" alt="Your photo of the comic"/>' : '')
+    + '<div class="ident">'
+        + '<h1>' + esc(c.title) + (c.issue ? ' #' + esc(c.issue) : '') + '</h1>'
+        + (c.publisher ? '<div class="series">' + esc(c.publisher) + (c.year ? ', ' + esc(c.year) : '') + '</div>' : '')
+        + (hasMultipleRuns(c.title)
+            ? '<div class="runs">' + esc(c.title) + ' has been relaunched more than once, so this issue number exists in several runs. '
+              + 'Check the cover date against the listings before you buy.</div>'
+            : '')
+      + '</div>'
+    + priceBlock
+    + factBlock
+    + infoBlock
+    + '<div class="block feedback"><p>Did we get the book right?</p>'
+      + '<div class="fbtns"><button class="fbtn" data-fb="yes">Yes</button>'
+      + '<button class="fbtn" data-fb="no">No</button></div></div>';
+
+  var dock = document.createElement('div');
+  dock.className = 'dock';
+  dock.innerHTML = '<button class="again" id="againBtn"><span class="ic">📷</span>New</button>'
+    + '<button class="add' + (saved?' done':'') + '" id="addBtn"' + (saved?' disabled':'') + '>'
+    + (saved ? 'In your collection' : 'Add to collection') + '</button>';
+  document.querySelectorAll('.dock').forEach(function(d){d.remove();});
+  document.body.appendChild(dock);
+
+  document.getElementById('againBtn').addEventListener('click', function(){
+    logEvent('scan_another'); $picker.click();
+  });
+  document.getElementById('addBtn').addEventListener('click', addCurrent);
+
+  $app.querySelectorAll('[data-fb]').forEach(function(b){
+    b.addEventListener('click', function(){
+      $app.querySelectorAll('[data-fb]').forEach(function(x){x.classList.remove('picked');});
+      b.classList.add('picked');
+      logEvent('scan_feedback', { correct: b.dataset.fb === 'yes', book: c.raw });
+      toast(b.dataset.fb === 'yes' ? 'Thanks' : 'Noted — that helps us fix it');
+    });
+  });
+
+  $app.querySelectorAll('[data-out]').forEach(function(a){
+    a.addEventListener('click', function(){
+      logEvent('outbound_' + a.dataset.out, { book: c.raw });
+    });
+  });
+
+  logEvent('result_viewed', { book: c.raw, listings: c.count, on_key_list: !!k });
+}
+
+function addCurrent(){
+  if(!current) return;
+  logEvent('collection_add_clicked', { book: current.raw });
+  if(inCollection(current)){ toast('Already in your collection'); return; }
+  var list = getCollection();
+  list.unshift({ key:current.key, title:current.title, issue:current.issue,
+                 publisher:current.publisher, year:current.year, addedAt:Date.now() });
+  saveCollection(list);
+  var btn = document.getElementById('addBtn');
+  if(btn){ btn.classList.add('done'); btn.disabled = true; btn.textContent = 'In your collection'; }
+  toast('Added — saved on this device');
+  logEvent('collection_added', { book: current.raw, size: list.length });
+}
+
+/* ---------- scan ---------- */
+$picker.addEventListener('change', function(){
+  var file = $picker.files && $picker.files[0];
+  if(!file) return;
+  document.querySelectorAll('.dock').forEach(function(d){d.remove();});
+
+  var reader = new FileReader();
+  reader.onload = function(){ photoDataUrl = reader.result; sendScan(file); };
+  reader.onerror = function(){ renderFailed('Couldn\u2019t read that image file.'); };
+  reader.readAsDataURL(file);
+  $picker.value = '';
+});
+
+async function sendScan(file){
+  renderLoading();
+  logEvent('scan_started');
+  try{
+    var fd = new FormData();
+    fd.append('image', file);
+    var r = await fetch(API + '/api/scan', { method:'POST', body: fd });
+    if(!r.ok) throw new Error('The scanner is offline right now. Try again in a moment.');
+    var d = await r.json();
+    if(!d.success) throw new Error(d.error || '');
+    renderResult(normalize(d));
+    logEvent('scan_success');
+  }catch(e){
+    renderFailed(e.message);
+    logEvent('scan_failed', { reason: String(e.message||'').slice(0,120) });
+  }
+}
+
+/* ---------- boot ---------- */
+paintCount();
+renderScan();
+
+})();
+</script>
+</body>
+</html>
