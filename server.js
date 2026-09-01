@@ -1,8 +1,20 @@
 /* ===============================
    COMICGAUGE
    AI SCANNER + EBAY COMIC MARKET BACKEND
-   server.js — v1.5 (scan + comps + hot comics auto-board)
-   Mirrors the CardGauge stock-card-api pattern.
+   server.js — v1.6
+
+   Changes from the live v1.5 — deliberately minimal, NOTHING RENAMED:
+     1. FIXED: normalizeComicQuery double-hashed every issue number.
+        "Amazing Spider-Man #300" became "##300". All 12 Hot Board
+        seeds and every cover scan were affected, because the vision
+        prompt returns "Title #Issue" already hashed. Typed searches
+        were the only path that worked.
+     2. resp.ok checks, so an eBay or OpenAI outage reports as an
+        outage instead of silently looking like "no listings found".
+     3. medianPrice added ALONGSIDE avgPrice. avgPrice is untouched,
+        so public/index.html keeps working exactly as before.
+     4. Vision guard: a refusal string no longer becomes an eBay query.
+     5. New POST /api/event — logs frontend events to the Render log.
 ================================ */
 
 const express = require("express");
@@ -22,28 +34,23 @@ const upload = multer({
 });
 
 /* ───────────────────────────────────────────────
-   ENV / CONFIG
-   Set these in the Render dashboard (NOT in GitHub):
-     EBAY_CLIENT_ID        eBay app Client ID (Browse API)
-     EBAY_CLIENT_SECRET    eBay app Client Secret
-     VISION_API_KEY        vision provider key (same one CardGauge scanner uses)
-     REFRESH_SECRET        guards the hot-board refresh endpoint
+   ENV / CONFIG — set these in the Render dashboard, not in GitHub:
+     EBAY_CLIENT_ID, EBAY_CLIENT_SECRET, VISION_API_KEY, REFRESH_SECRET
 ─────────────────────────────────────────────── */
-const EPN_CAMPAIGN_ID = "5339149252";          // your eBay Partner Network campid
-const EPN_MKRID       = "711-53200-19255-0";   // US rotation id
+const EPN_CAMPAIGN_ID = "5339149252";
+const EPN_MKRID       = "711-53200-19255-0";
 
 const EBAY_CLIENT_ID     = process.env.EBAY_CLIENT_ID || "";
 const EBAY_CLIENT_SECRET = process.env.EBAY_CLIENT_SECRET || "";
 const VISION_API_KEY     = process.env.VISION_API_KEY || "";
 const REFRESH_SECRET     = process.env.REFRESH_SECRET || "";
 
-// eBay Comics category (Collectibles > Comics). 63 = Comics root.
 const EBAY_COMICS_CATEGORY = "63";
 
 /* ───────────────────────────────────────────────
    AFFILIATE URL BUILDERS
-   We never store eBay sold prices. We deep-link users to eBay's
-   own sold-comps view with the EPN tag attached. Fully compliant.
+   We never store eBay sold prices — we deep-link to eBay's own
+   sold view with the EPN tag attached.
 ─────────────────────────────────────────────── */
 function ebaySearchUrl(query, sold) {
   const base = "https://www.ebay.com/sch/i.html";
@@ -72,15 +79,18 @@ function addAffiliate(url) {
 
 /* ───────────────────────────────────────────────
    COMIC QUERY NORMALIZER
-   Comics key on: title + issue # + (optional) grade.
-   e.g. "amazing spiderman 300" -> "Amazing Spider-Man #300"
-   Keeps grade (CGC 9.8) if present so comps stay tight.
+
+   THE FIX IS THE (?<!#) BELOW.
+   \b(\d{1,4})\b matches the digits inside "#300", because there is a
+   word boundary between "#" and "3". So anything already formatted
+   picked up a second hash. Every Hot Board seed and every vision
+   result arrives already hashed — which is why only typed searches
+   ever worked.
 ─────────────────────────────────────────────── */
 function normalizeComicQuery(raw) {
   if (!raw) return "";
   let q = String(raw).trim().replace(/\s+/g, " ");
 
-  // Pull a grade if present (CGC/CBCS 9.8 etc.) to re-append cleanly.
   let grade = "";
   const gradeMatch = q.match(/\b(cgc|cbcs|pgx)\s*\.?\s*(\d{1,2}(?:\.\d)?)\b/i);
   if (gradeMatch) {
@@ -88,15 +98,13 @@ function normalizeComicQuery(raw) {
     q = q.replace(gradeMatch[0], "").trim();
   }
 
-  // Normalize common title spellings.
   q = q
     .replace(/\bspider\s*-?\s*man\b/gi, "Spider-Man")
     .replace(/\bx\s*-?\s*men\b/gi, "X-Men")
     .replace(/\bfantastic\s*4\b/gi, "Fantastic Four");
 
-  // Ensure issue number has a # if a bare trailing number exists.
-  q = q.replace(/\b(\d{1,4})\b(?!\s*(cgc|cbcs|pgx))/i, (m, n, _g, offset, full) => {
-    // only prefix # if it looks like an issue number (not a year)
+  // Add a # only where there isn't one already, and never to a year.
+  q = q.replace(/(?<!#)\b(\d{1,4})\b(?!\s*(cgc|cbcs|pgx))/i, (m, n) => {
     if (/^(19|20)\d{2}$/.test(n)) return n;
     return `#${n}`;
   });
@@ -107,7 +115,6 @@ function normalizeComicQuery(raw) {
 
 /* ───────────────────────────────────────────────
    EBAY BROWSE API — live ACTIVE listings only
-   (sold data is gated; we link out for sold comps)
 ─────────────────────────────────────────────── */
 let cachedToken = null;
 let tokenExpiry = 0;
@@ -126,11 +133,20 @@ async function getEbayToken() {
     },
     body: "grant_type=client_credentials&scope=https://api.ebay.com/oauth/api_scope",
   });
+  if (!resp.ok) throw new Error(`eBay token HTTP ${resp.status}`);
   const data = await resp.json();
   if (!data.access_token) throw new Error("eBay token request failed");
   cachedToken = data.access_token;
   tokenExpiry = Date.now() + (data.expires_in - 60) * 1000;
   return cachedToken;
+}
+
+function median(nums) {
+  if (!nums.length) return null;
+  const s = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(s.length / 2);
+  const m = s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2;
+  return Math.round(m * 100) / 100;
 }
 
 async function fetchActiveMarket(query) {
@@ -150,6 +166,7 @@ async function fetchActiveMarket(query) {
       "X-EBAY-C-MARKETPLACE-ID": "EBAY_US",
     },
   });
+  if (!resp.ok) throw new Error(`eBay Browse HTTP ${resp.status}`);
   const data = await resp.json();
 
   const items = (data.itemSummaries || []).map((it) => ({
@@ -166,7 +183,11 @@ async function fetchActiveMarket(query) {
 
   return {
     cleanQuery,
+    // avgPrice kept exactly as-is so the existing frontend is unaffected.
     avgPrice: avg ? Math.round(avg * 100) / 100 : null,
+    // medianPrice is new and additive. A single $3k slab drags the mean
+    // badly on a book with a wide condition spread.
+    medianPrice: median(prices),
     lowPrice: prices.length ? prices[0] : null,
     highPrice: prices.length ? prices[prices.length - 1] : null,
     listingCount: items.length,
@@ -177,14 +198,11 @@ async function fetchActiveMarket(query) {
 }
 
 /* ───────────────────────────────────────────────
-   VISION SCAN — identify a comic from a cover photo.
-   Returns a normalized search string the market endpoint can use.
-   Provider call is left generic; reads VISION_API_KEY from env.
+   VISION SCAN
 ─────────────────────────────────────────────── */
 async function identifyComicFromImage(base64Image) {
-  if (!VISION_API_KEY) {
-    throw new Error("Missing VISION_API_KEY env var");
-  }
+  if (!VISION_API_KEY) throw new Error("Missing VISION_API_KEY env var");
+
   const resp = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -202,8 +220,11 @@ async function identifyComicFromImage(base64Image) {
               text:
                 "Identify this comic book from its cover. Respond with ONLY a search " +
                 "string in the format: Title #Issue (e.g. 'Amazing Spider-Man #300'). " +
+                "Use the copyright indicia date, not the cover art style — reprints and " +
+                "facsimile editions carry the original cover date. " +
                 "If you can read a CGC/CBCS grade on a slab label, append it " +
-                "(e.g. 'Amazing Spider-Man #300 CGC 9.8'). No other text.",
+                "(e.g. 'Amazing Spider-Man #300 CGC 9.8'). " +
+                "If you cannot identify it, respond with exactly: UNKNOWN",
             },
             {
               type: "image_url",
@@ -215,16 +236,25 @@ async function identifyComicFromImage(base64Image) {
       max_tokens: 60,
     }),
   });
+  if (!resp.ok) throw new Error(`Vision HTTP ${resp.status}`);
   const data = await resp.json();
   const text = data.choices?.[0]?.message?.content?.trim() || "";
+
+  // Don't send "I'm sorry, I can't identify this" to eBay as a search query.
+  if (!text || /^unknown$/i.test(text) || text.length > 80) return "";
+  if (/\b(sorry|cannot|can't|unable|i'm)\b/i.test(text)) return "";
   return text;
 }
 
 /* ───────────────────────────────────────────────
-   HOT COMICS auto-board watchlist
-   Seed list of key issues. The board re-pulls LIVE active ranges
-   on each load and re-ranks by live listing volume (a legal signal).
-   v2: move this to Supabase + scheduled re-rank job.
+   KEY ISSUES WE WATCH
+
+   This sorts by listingCount, which is SUPPLY, not demand — the books
+   with the most copies for sale rank highest, which is the opposite of
+   "hot". Real hotness needs week-over-week change in listing count and
+   floor price, which needs a stored history table. Until that exists
+   this is a hand-picked watchlist with live listing counts, and the
+   frontend now says exactly that instead of claiming a hotness signal.
 ─────────────────────────────────────────────── */
 const HOT_COMICS_SEED = [
   "Amazing Spider-Man #300",
@@ -242,7 +272,8 @@ const HOT_COMICS_SEED = [
 ];
 
 let hotBoardCache = { ts: 0, items: [] };
-const HOT_CACHE_MS = 15 * 60 * 1000; // 15 min soft cache
+let hotBoardBuilding = null;
+const HOT_CACHE_MS = 15 * 60 * 1000;
 
 async function buildHotBoard() {
   const results = [];
@@ -252,6 +283,7 @@ async function buildHotBoard() {
       results.push({
         title,
         avgPrice: m.avgPrice,
+        medianPrice: m.medianPrice,
         lowPrice: m.lowPrice,
         highPrice: m.highPrice,
         listingCount: m.listingCount,
@@ -260,19 +292,41 @@ async function buildHotBoard() {
         listingsUrl: ebaySearchUrl(title, false),
       });
     } catch (e) {
-      // skip a book that errors; board still renders
+      console.warn(`Hot board skip "${title}": ${e.message}`);
     }
   }
-  // Re-rank by live listing volume (legal Browse signal = market activity).
   results.sort((a, b) => (b.listingCount || 0) - (a.listingCount || 0));
   return results;
+}
+
+/* Single-flight: 12 sequential eBay calls on a cold cache used to run
+   once per concurrent visitor. Now they share one rebuild. */
+function getHotBoard() {
+  const fresh = Date.now() - hotBoardCache.ts < HOT_CACHE_MS;
+  if (fresh && hotBoardCache.items.length) {
+    return Promise.resolve({ items: hotBoardCache.items, cached: true });
+  }
+  if (!hotBoardBuilding) {
+    hotBoardBuilding = buildHotBoard()
+      .then((items) => {
+        if (items.length) hotBoardCache = { ts: Date.now(), items };
+        return { items: hotBoardCache.items, cached: false };
+      })
+      .catch((e) => {
+        if (hotBoardCache.items.length) {
+          return { items: hotBoardCache.items, cached: true, stale: true };
+        }
+        throw e;
+      })
+      .finally(() => { hotBoardBuilding = null; });
+  }
+  return hotBoardBuilding;
 }
 
 /* ───────────────────────────────────────────────
    ROUTES
 ─────────────────────────────────────────────── */
 
-// Image scan -> identify -> market
 app.post("/api/scan", upload.single("image"), async (req, res) => {
   try {
     let base64;
@@ -286,16 +340,22 @@ app.post("/api/scan", upload.single("image"), async (req, res) => {
 
     const identified = await identifyComicFromImage(base64);
     if (!identified) {
-      return res.json({ success: false, error: "Could not identify the comic. Try the search lookup instead." });
+      return res.json({
+        success: false,
+        error: "Could not read that cover. Try again with the whole cover in frame, or use the search tab.",
+      });
     }
 
     const market = await fetchActiveMarket(identified);
+    console.log(`SCAN ok "${identified}" -> ${market.listingCount} listings`);
+
     return res.json({
       success: true,
       identified,
       query: market.cleanQuery,
-      note: "Active eBay listings shown. Tap Sold Comps for completed-sale prices on eBay.",
+      note: "These are asking prices from active eBay listings, not sold prices. Tap Sold Comps for real completed sales.",
       avgPrice: market.avgPrice,
+      medianPrice: market.medianPrice,
       lowPrice: market.lowPrice,
       highPrice: market.highPrice,
       listingCount: market.listingCount,
@@ -313,18 +373,20 @@ app.post("/api/scan", upload.single("image"), async (req, res) => {
   }
 });
 
-// Text/search lookup -> market
 app.get("/api/market", async (req, res) => {
   try {
     const query = req.query.q;
     if (!query) return res.status(400).json({ success: false, error: "Missing q param" });
 
     const market = await fetchActiveMarket(query);
+    console.log(`MARKET "${query}" -> "${market.cleanQuery}" -> ${market.listingCount} listings`);
+
     return res.json({
       success: true,
       query: market.cleanQuery,
-      note: "Active eBay listings shown. Tap Sold Comps for completed-sale prices on eBay.",
+      note: "These are asking prices from active eBay listings, not sold prices. Tap Sold Comps for real completed sales.",
       avgPrice: market.avgPrice,
+      medianPrice: market.medianPrice,
       lowPrice: market.lowPrice,
       highPrice: market.highPrice,
       listingCount: market.listingCount,
@@ -342,22 +404,23 @@ app.get("/api/market", async (req, res) => {
   }
 });
 
-// Hot Comics auto-board (re-pulls live ranges, re-ranks by activity)
 app.get("/api/hot-comics", async (req, res) => {
   try {
-    if (Date.now() - hotBoardCache.ts < HOT_CACHE_MS && hotBoardCache.items.length) {
-      return res.json({ success: true, cached: true, items: hotBoardCache.items, timestamp: hotBoardCache.ts });
-    }
-    const items = await buildHotBoard();
-    hotBoardCache = { ts: Date.now(), items };
-    return res.json({ success: true, cached: false, items, timestamp: hotBoardCache.ts });
+    const board = await getHotBoard();
+    return res.json({
+      success: true,
+      cached: board.cached,
+      stale: !!board.stale,
+      ranking: "active_listing_count",
+      items: board.items,
+      timestamp: hotBoardCache.ts,
+    });
   } catch (error) {
     console.error("Hot board error:", error);
     return res.status(500).json({ success: false, error: "Hot board failed", details: error.message });
   }
 });
 
-// Force-refresh the hot board (guarded). v1.5 stand-in for a scheduled re-rank.
 app.post("/api/hot-comics/refresh", async (req, res) => {
   const secret = req.headers["x-refresh-secret"];
   if (!REFRESH_SECRET || secret !== REFRESH_SECRET) {
@@ -372,21 +435,49 @@ app.post("/api/hot-comics/refresh", async (req, res) => {
   }
 });
 
-// Affiliate sanity check
+/* Frontend event logging. Goes to the Render log for now — swap the
+   console.log for a Supabase insert when you want it queryable. */
+app.post("/api/event", (req, res) => {
+  try {
+    const b = req.body || {};
+    console.log("EVENT " + JSON.stringify({
+      event: String(b.event || "unknown").slice(0, 60),
+      detail: b.detail ? String(b.detail).slice(0, 200) : undefined,
+      count: b.count,
+      ts: new Date().toISOString(),
+    }));
+  } catch (e) { /* never let logging break a page */ }
+  res.json({ ok: true });
+});
+
+/* Runs through the normalizer, so this route would have caught the ##
+   bug. In v1.5 it bypassed normalization and always looked healthy. */
 app.get("/api/affiliate-test", (req, res) => {
-  const testQuery = "Amazing Spider-Man #300 CGC 9.8";
+  const testQuery = normalizeComicQuery("Amazing Spider-Man #300 CGC 9.8");
   res.json({
     success: true,
     message: "ComicGauge eBay affiliate tracking is active",
     campid: EPN_CAMPAIGN_ID,
+    normalized: testQuery,
     sampleActiveUrl: ebaySearchUrl(testQuery, false),
     sampleSoldUrl: ebaySearchUrl(testQuery, true),
   });
 });
 
-app.get("/api/health", (req, res) => res.json({ ok: true, service: "comicgauge-api" }));
+app.get("/api/health", (req, res) =>
+  res.json({
+    ok: true,
+    service: "comicgauge-api",
+    version: "1.6",
+    // If this shows a double hash, the deploy didn't take.
+    normalizerCheck: normalizeComicQuery("Amazing Spider-Man #300"),
+    env: {
+      ebay: Boolean(EBAY_CLIENT_ID && EBAY_CLIENT_SECRET),
+      vision: Boolean(VISION_API_KEY),
+    },
+  })
+);
 
-// Serve the static frontend
 app.use(express.static("public"));
 
 app.use((req, res) => {
@@ -395,6 +486,6 @@ app.use((req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`ComicGauge backend running on port ${PORT}`);
-  console.log(`eBay EPN campid: ${EPN_CAMPAIGN_ID}`);
+  console.log(`ComicGauge backend v1.6 running on port ${PORT}`);
+  console.log(`Normalizer check: ${normalizeComicQuery("Amazing Spider-Man #300")}`);
 });
