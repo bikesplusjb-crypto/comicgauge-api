@@ -107,6 +107,29 @@ body{font-family:var(--fb);color:var(--text);line-height:1.5;font-size:16px;-web
   background:var(--surface3);border:1px solid var(--border2);color:var(--text);padding:11px 20px;border-radius:9px;
   font-size:13.5px;font-weight:600;z-index:60;max-width:88vw;text-align:center;}
 
+/* ---- collection ---- */
+.count{cursor:pointer;padding:6px 10px;margin:-6px -10px;border-radius:8px;}
+.count:hover{background:var(--surface2);color:var(--text);}
+.coll-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:16px;}
+.coll-head h1{font-family:var(--fd);font-size:28px;font-weight:700;letter-spacing:.5px;}
+.coll-head .n{font-family:var(--fm);font-size:12px;color:var(--text3);}
+.citem{display:flex;align-items:center;gap:12px;background:var(--surface);border:1px solid var(--border);
+  border-radius:12px;padding:13px 14px;margin-bottom:8px;}
+.citem .ci{flex:1;min-width:0;}
+.citem .ct{font-weight:700;font-size:15px;line-height:1.3;}
+.citem .cm{font-family:var(--fm);font-size:11px;color:var(--text3);margin-top:3px;}
+.citem .ck{display:inline-block;font-family:var(--fm);font-size:10px;color:var(--gold);
+  background:rgba(245,179,1,.1);border:1px solid rgba(245,179,1,.3);border-radius:20px;
+  padding:2px 8px;margin-top:6px;}
+.citem .cx{background:none;border:none;color:var(--muted);font-size:20px;line-height:1;cursor:pointer;
+  padding:6px 8px;flex-shrink:0;}
+.citem .cx:hover{color:var(--ink);}
+.coll-empty{text-align:center;padding:50px 20px;color:var(--text3);}
+.coll-empty h3{font-family:var(--fd);font-size:20px;color:var(--text);margin-bottom:8px;font-weight:600;}
+.coll-empty p{font-size:14px;max-width:32ch;margin:0 auto 20px;line-height:1.6;}
+.coll-note{font-family:var(--fm);font-size:11px;color:var(--muted);text-align:center;
+  line-height:1.7;margin-top:18px;padding-top:16px;border-top:1px solid var(--border);}
+
 .foot{text-align:center;padding:22px 16px 8px;font-size:12px;color:var(--muted);line-height:1.7;}
 .foot a{color:var(--text3);text-decoration:none;}
 
@@ -271,7 +294,65 @@ function saveCollection(list){
 }
 function paintCount(){
   var n = getCollection().length;
-  document.getElementById('collCount').textContent = n ? (n + (n===1?' comic':' comics')) : '';
+  var el = document.getElementById('collCount');
+  el.textContent = n ? (n + (n===1?' comic':' comics') + '  \u203A') : '';
+  el.setAttribute('role', n ? 'button' : '');
+  el.setAttribute('tabindex', n ? '0' : '-1');
+}
+
+/* The counter used to be decoration. Tapping it now opens the
+   collection — a count that leads nowhere is worse than no count,
+   because it implies something exists. */
+function removeFromCollection(key){
+  saveCollection(getCollection().filter(function(x){ return x.key !== key; }));
+  logEvent('collection_removed');
+  renderCollection();
+}
+
+function renderCollection(){
+  document.querySelectorAll('.dock').forEach(function(d){ d.remove(); });
+  var list = getCollection();
+  logEvent('collection_opened', { size: list.length });
+
+  if(!list.length){
+    $app.innerHTML = '<div class="coll-empty">'
+      + '<h3>Nothing saved yet</h3>'
+      + '<p>Comics you add land here. Everything stays on this device \u2014 no account, nothing uploaded.</p>'
+      + '<button class="btn btn-primary" id="collScan">Scan a comic</button></div>';
+    document.getElementById('collScan').addEventListener('click', function(){ $picker.click(); });
+    return;
+  }
+
+  var rows = list.map(function(c){
+    var k = KEY_ISSUES[c.key];
+    var meta = [c.publisher, c.year, eraFor(c.year)].filter(Boolean).join(' \u00b7 ');
+    return '<div class="citem"><div class="ci">'
+      + '<div class="ct">' + esc(c.title) + (c.issue ? ' #' + esc(c.issue) : '') + '</div>'
+      + (meta ? '<div class="cm">' + esc(meta) + '</div>' : '')
+      + (k && k.fact ? '<div class="ck">' + esc(k.fact) + '</div>' : '')
+      + '</div>'
+      + '<button class="cx" data-remove="' + esc(c.key) + '" aria-label="Remove">\u00d7</button></div>';
+  }).join('');
+
+  var keys = list.filter(function(c){ var k = KEY_ISSUES[c.key]; return k && k.fact; }).length;
+
+  $app.innerHTML = '<div class="coll-head"><h1>Your collection</h1>'
+      + '<span class="n">' + list.length + (list.length===1?' comic':' comics')
+      + (keys ? ' \u00b7 ' + keys + ' key' : '') + '</span></div>'
+    + rows
+    + '<div class="coll-note">Saved on this device only. Clearing your browser data will clear this list.</div>';
+
+  $app.querySelectorAll('[data-remove]').forEach(function(b){
+    b.addEventListener('click', function(){ removeFromCollection(b.dataset.remove); });
+  });
+
+  var dock = document.createElement('div');
+  dock.className = 'dock';
+  dock.innerHTML = '<button class="add" id="collScanBtn">Scan another comic</button>';
+  document.body.appendChild(dock);
+  document.getElementById('collScanBtn').addEventListener('click', function(){
+    logEvent('scan_from_collection'); $picker.click();
+  });
 }
 function inCollection(c){
   return getCollection().some(function(x){ return x.key === c.key; });
@@ -448,7 +529,14 @@ function addCurrent(){
                  publisher:current.publisher, year:current.year, addedAt:Date.now() });
   saveCollection(list);
   var btn = document.getElementById('addBtn');
-  if(btn){ btn.classList.add('done'); btn.disabled = true; btn.textContent = 'In your collection'; }
+  if(btn){
+    /* Turn the button into the route onward instead of a dead end. */
+    btn.classList.add('done');
+    btn.textContent = 'View your ' + list.length + (list.length===1 ? ' comic' : ' comics');
+    var fresh = btn.cloneNode(true);
+    btn.parentNode.replaceChild(fresh, btn);
+    fresh.addEventListener('click', renderCollection);
+  }
   toast('Added — saved on this device');
   logEvent('collection_added', { book: current.raw, size: list.length });
 }
@@ -508,8 +596,15 @@ async function sendScan(file){
 }
 
 /* ---------- boot ---------- */
+var $count = document.getElementById('collCount');
+$count.addEventListener('click', function(){ if(getCollection().length) renderCollection(); });
+$count.addEventListener('keydown', function(e){
+  if((e.key==='Enter'||e.key===' ') && getCollection().length){ e.preventDefault(); renderCollection(); }
+});
+
 paintCount();
-renderScan();
+if(location.hash === '#collection' && getCollection().length) renderCollection();
+else renderScan();
 
 })();
 </script>
