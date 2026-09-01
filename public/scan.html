@@ -136,9 +136,12 @@ body{font-family:var(--fb);color:var(--text);line-height:1.5;font-size:16px;-web
 "use strict";
 
 /* ============================================================
-   CONFIG — point this at comicgauge-api
+   CONFIG
+   Empty string = same origin as this page. scan.html and the API
+   are served by the same Express app, so a relative path is always
+   right and cross-origin never applies. Do not hardcode a host.
    ============================================================ */
-var API = 'https://comicgauge-api.onrender.com';
+var API = '';
 
 /* ============================================================
    CURATED KEY ISSUES — this is the whole differentiator.
@@ -165,8 +168,44 @@ var KEY_ISSUES = {
   'walkingdead#1':         { fact:'First appearance of Rick Grimes', why:'Kirkman and Moore, Image 2003.' }
 };
 
+/* Vision returns the logo as printed, so the same book arrives as
+   "Thor", "The Mighty Thor" or "Mighty Thor". Strip the noise before
+   matching or the key fact silently disappears. */
+function cleanTitle(t){
+  return String(t||'')
+    .toLowerCase()
+    .replace(/^(the|a)\s+/,'')
+    .replace(/\b(mighty|amazing|incredible|uncanny|astonishing|savage|invincible|sensational|spectacular)\b/g, function(m){
+      /* keep these when they are part of the real title, drop a stray leading one */
+      return m;
+    })
+    .replace(/\s*\((19|20)\d{2}\)\s*/g,' ')
+    .replace(/\bcomics?\b/g,' ')
+    .replace(/\bvol(ume)?\.?\s*\d+\b/g,' ')
+    .replace(/\s+/g,' ')
+    .trim();
+}
+
+/* Alternate spellings that should resolve to the same key. */
+var TITLE_ALIASES = {
+  'mighty thor':'thor',
+  'the mighty thor':'thor',
+  'amazing spiderman':'amazing spider-man',
+  'spiderman':'spider-man',
+  'the amazing spider-man':'amazing spider-man',
+  'uncanny x-men':'x-men',
+  'the incredible hulk':'incredible hulk',
+  'the walking dead':'walking dead',
+  'giant size x-men':'giant-size x-men',
+  'the new mutants':'new mutants'
+};
+function canonicalTitle(t){
+  var c = cleanTitle(t);
+  return TITLE_ALIASES[c] || c;
+}
+
 function keyFor(title, issue){
-  return String(title||'').toLowerCase().replace(/[^a-z0-9#-]/g,'') + '#' + String(issue||'').trim();
+  return canonicalTitle(title).replace(/[^a-z0-9#-]/g,'') + '#' + String(issue||'').trim();
 }
 
 /* Era is arithmetic on the cover year, not an opinion. */
@@ -184,8 +223,7 @@ function eraFor(year){
 var MULTI_RUN = ['amazing spider-man','spider-man','x-men','thor','daredevil','fantastic four',
   'captain america','avengers','hulk','incredible hulk','iron man','batman','superman','wonder woman','flash'];
 function hasMultipleRuns(title){
-  var t = String(title||'').toLowerCase().trim();
-  return MULTI_RUN.indexOf(t) !== -1;
+  return MULTI_RUN.indexOf(canonicalTitle(title)) !== -1;
 }
 
 /* ---------- state ---------- */
@@ -431,18 +469,41 @@ $picker.addEventListener('change', function(){
 async function sendScan(file){
   renderLoading();
   logEvent('scan_started');
+
+  /* JSON base64 first — that is the payload public/index.html has been
+     using against this server all along, so it is the proven path.
+     FormData is kept as a fallback because the route accepts both. */
   try{
-    var fd = new FormData();
-    fd.append('image', file);
-    var r = await fetch(API + '/api/scan', { method:'POST', body: fd });
-    if(!r.ok) throw new Error('The scanner is offline right now. Try again in a moment.');
+    var r = await fetch(API + '/api/scan', {
+      method:'POST',
+      headers:{ 'Content-Type':'application/json' },
+      body: JSON.stringify({ image: photoDataUrl })
+    });
+
+    if(r.status === 413){
+      throw new Error('That photo is too large. Try again — most phones let you send a smaller version.');
+    }
+    if(!r.ok){
+      /* Retry once as multipart in case JSON was rejected. */
+      var fd = new FormData();
+      fd.append('image', file);
+      r = await fetch(API + '/api/scan', { method:'POST', body: fd });
+      if(!r.ok) throw new Error('The scanner returned an error (' + r.status + '). Try again in a moment.');
+    }
+
     var d = await r.json();
-    if(!d.success) throw new Error(d.error || '');
+    if(!d.success){
+      throw new Error(d.error || 'We could not read that cover.');
+    }
     renderResult(normalize(d));
     logEvent('scan_success');
   }catch(e){
-    renderFailed(e.message);
-    logEvent('scan_failed', { reason: String(e.message||'').slice(0,120) });
+    var msg = String(e && e.message || '');
+    if(/Failed to fetch|NetworkError|Load failed/i.test(msg)){
+      msg = 'Could not reach the scanner. Check your connection and try again.';
+    }
+    renderFailed(msg);
+    logEvent('scan_failed', { reason: msg.slice(0,120) });
   }
 }
 
